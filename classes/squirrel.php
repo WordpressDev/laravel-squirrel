@@ -34,7 +34,11 @@ class Squirrel
 		// handle GET requests
 		static::handle_get($n);
 		// handle POST requests
-		static::handle_post($n);		
+		static::handle_post($n);	
+		// handle PUT requests
+		static::handle_put($n);
+		// handle DELETE requests
+		static::handle_delete($n);			
 	}
 
 	/**
