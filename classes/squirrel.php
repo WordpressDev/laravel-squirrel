@@ -4,6 +4,8 @@
  * Squirrel Core
  *
  * @package squirrel
+ * @version  1.0
+ * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
  * @copyright Dayle Rees 2012.
  * @author Dayle Rees <me@daylerees.com>
  */
@@ -15,30 +17,32 @@ class Squirrel
 	 * @param  Closure $nut    Handle object settings.
 	 * @return void
 	 */
-	public static function register($object, Closure $nut)
+	public static function register($type, Closure $object = null)
 	{
 		// create a new nut object
-		$n = new Nut();
+		$nut = new Nut();
 
 		// set the object name
-		$n->object = $object;
+		$nut->object = $type;
 
 		// set the resource names to the lower of
 		// the object by default
-		$n->singular = Str::lower($object);
-		$n->plural = Str::plural(Str::lower($object));
+		$nut->singular 	= Str::lower($type);
+		$nut->plural 	= Str::plural(Str::lower($type));
 
 		// hand the nut to the route closure
-		call_user_func($nut, $n);
+		if ($object != null) call_user_func($object, $nut);
 
-		// handle GET requests
-		static::handle_get($n);
-		// handle POST requests
-		static::handle_post($n);	
-		// handle PUT requests
-		static::handle_put($n);
-		// handle DELETE requests
-		static::handle_delete($n);			
+		// request types to process
+		$requests = array('get', 'put', 'post', 'delete');
+
+		// loop each request
+		foreach ($requests as $request)
+		{
+			// create routes
+			$method = 'handle_'.$request;
+			static::$method($nut);
+		}
 	}
 
 	/**
@@ -49,7 +53,8 @@ class Squirrel
 	private static function handle_get($nut)
 	{
 		// make sure we allow get requests
-		if(! $nut->get) return;
+		if (! $nut->get)
+			return Response::make('GET requests to this resource are not allowed.', 403);
 
 		// listing of objects
 		Route::get($nut->stub.'/'.$nut->plural, function() use ($nut) {
@@ -58,10 +63,19 @@ class Squirrel
 			$class = $nut->object;
 
 			// retrieve all objects
-			$object = $class::get();
+			$objects = $class::get();
+
+			// array to store data
+			$all = array();
+
+			// loop object + add to all
+			foreach($objects as $object)
+			{
+				$all[] = $object->attributes;
+			}
 
 			// return the JSON formatted array of objects
-			return Response::json($object);
+			return Response::json($all);
 		});
 
 		// request a single object
@@ -77,8 +91,8 @@ class Squirrel
 			if (! $object) return Response::error('404');
 
 			// return the object in json format
-			return Response::json($object);
-		});		
+			return Response::json($object->attributes);
+		});
 	}
 
 	/**
@@ -89,7 +103,8 @@ class Squirrel
 	private static function handle_post($nut)
 	{
 		// make sure we allow post requests
-		if(! $nut->post) return;
+		if (! $nut->post)
+			return Response::make('POST requests to this resource are not allowed.', 403);
 
 		// create a new object
 		Route::post($nut->stub.'/'.$nut->singular, function() use ($nut) {
@@ -107,8 +122,8 @@ class Squirrel
 			$object->save();
 
 			// return the object in json format
-			return Response::json($object);
-		});			
+			return Response::json($object->attributes);
+		});
 	}
 
 	/**
@@ -119,7 +134,8 @@ class Squirrel
 	private static function handle_put($nut)
 	{
 		// make sure we allow put requests
-		if(! $nut->put) return;
+		if (! $nut->put)
+			return Response::make('PUT requests to this resource are not allowed.', 403);
 
 		// update a single object
 		Route::put($nut->stub.'/'.$nut->singular.'/(:num)', function($id) use ($nut) {
@@ -131,7 +147,7 @@ class Squirrel
 			$object = $class::find($id);
 
 			// it doesn't exist? 404
-			if (! $object) return Response::error('404');			
+			if (! $object) return Response::error('404');
 
 			// fill with post data
 			$object->fill(Input::get());
@@ -140,19 +156,20 @@ class Squirrel
 			$object->save();
 
 			// return the object in json format
-			return Response::json($object);
-		});			
+			return Response::json($object->attributes);
+		});
 	}
 
 	/**
 	 * Handle DELETE requests for registered Squirrel objects.
 	 * @param  Nut $nut  The nut for the request.
-	 * @return string Description of the object.
+	 * @return string Delete confirmation.
 	 */
 	private static function handle_delete($nut)
 	{
 		// make sure we allow put requests
-		if(! $nut->put) return;
+		if (! $nut->put)
+			return Response::make('DELETE requests to this resource are not allowed.', 403);
 
 		// delete a single object
 		Route::delete($nut->stub.'/'.$nut->singular.'/(:num)', function($id) use ($nut) {
@@ -164,14 +181,13 @@ class Squirrel
 			$object = $class::find($id);
 
 			// it doesn't exist? 404
-			if (! $object) return Response::error('404');			
+			if (! $object) return Response::error('404');
 
 			// delete the object
 			$object->delete();
 
 			// show some kind of confirmation
 			return Response::make('deleted', 200);
-		});			
+		});
 	}
-
 }

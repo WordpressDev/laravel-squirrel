@@ -5,6 +5,8 @@
  * the Squirrel API builder.
  *
  * @package squirrel
+ * @version  1.0
+ * @license MIT License <http://www.opensource.org/licenses/mit-license.php>
  * @copyright Dayle Rees 2012.
  * @author Dayle Rees <me@daylerees.com>
  */
